@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Standard connection check ping document
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Standard Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Blueprint for UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['name', 'email', 'plan', 'readmesGenerated', 'createdAt'])
+        && data.keys().size() <= 7
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 128
+        && data.email is string && data.email.size() <= 256
+        && data.plan is string && data.plan.size() <= 32
+        && data.readmesGenerated is number
+        && data.createdAt is number;
+    }
+
+    // Validation Blueprint for ReadmeHistory
+    function isValidReadmeHistory(data) {
+      return data.keys().hasAll([
+        'id', 'repoName', 'repoUrl', 'repoDescription', 'language', 'stars', 
+        'sections', 'content', 'mlProjectType', 'mlConfidence', 'mlQualityScore', 
+        'recommendedSections', 'createdAt'
+      ])
+        && data.keys().size() >= 13 && data.keys().size() <= 14
+        && data.id is string && data.id.size() <= 128
+        && data.repoName is string && data.repoName.size() <= 256
+        && data.repoUrl is string && data.repoUrl.size() <= 1024
+        && data.repoDescription is string && data.repoDescription.size() <= 50000
+        && data.language is string && data.language.size() <= 128
+        && data.stars is number
+        && data.sections is list && data.sections.size() <= 100
+        && (data.sections.size() == 0 || data.sections[0] is string)
+        && data.content is string && data.content.size() <= 1000000
+        && data.mlProjectType is string && data.mlProjectType.size() <= 128
+        && data.mlConfidence is string && data.mlConfidence.size() <= 32
+        && data.mlQualityScore is number
+        && data.recommendedSections is list && data.recommendedSections.size() <= 100
+        && (data.recommendedSections.size() == 0 || data.recommendedSections[0] is string)
+        && (!data.keys().hasAny(['generationMode']) || (data.generationMode is string && data.generationMode.size() <= 32))
+        && data.createdAt is number;
+    }
+
+    // UserProfile collection rules
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(incoming());
+      allow update: if isOwner(userId) 
+        && isValidUserProfile(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().email == existing().email;
+      allow delete: if false;
+    }
+
+    // ReadmeHistory collection rules under user profiles
+    match /users/{userId}/readmes/{readmeId} {
+      allow list, get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidId(readmeId) && isValidReadmeHistory(incoming());
+      allow update: if false;
+      allow delete: if isOwner(userId);
+    }
+
+    // Errors collection rules
+    match /errors/{docId} {
+      allow create: if true;
+      allow read: if request.auth != null && (
+        request.auth.uid == resource.data.userId ||
+        request.auth.token.email == 'rishijain30a@gmail.com'
+      );
+      allow update: if request.auth != null
+        && request.auth.token.email == 'rishijain30a@gmail.com';
+      allow delete: if false;
+    }
+
+    // Payments collection rules
+    match /payments/{docId} {
+      allow read: if request.auth != null
+                  && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if false;
+    }
+  }
+}

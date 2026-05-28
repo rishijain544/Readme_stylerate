@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores developer profile information",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the developer"
+        },
+        "email": {
+          "type": "string",
+          "description": "Registered developer email address"
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "Avatar URL of the developer"
+        },
+        "plan": {
+          "type": "string",
+          "description": "Subscription tier"
+        },
+        "readmesGenerated": {
+          "type": "number",
+          "description": "Total number of readmes generated"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp when the user account was created"
+        }
+      },
+      "required": ["name", "email", "plan", "readmesGenerated", "createdAt"]
+    },
+    "ReadmeHistory": {
+      "title": "ReadmeHistory",
+      "description": "Stores history of generated READMEs",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of generated README document"
+        },
+        "repoName": {
+          "type": "string",
+          "description": "Name of the repository"
+        },
+        "repoUrl": {
+          "type": "string",
+          "description": "URL of the repository"
+        },
+        "repoDescription": {
+          "type": "string",
+          "description": "Description of the repository"
+        },
+        "language": {
+          "type": "string",
+          "description": "Dominant coding language of the repository"
+        },
+        "stars": {
+          "type": "number",
+          "description": "Star count of the repository"
+        },
+        "sections": {
+          "type": "array",
+          "description": "Selected sections included in generated readme"
+        },
+        "content": {
+          "type": "string",
+          "description": "Contents of the generated README markdown"
+        },
+        "mlProjectType": {
+          "type": "string",
+          "description": "Classified project type"
+        },
+        "mlConfidence": {
+          "type": "string",
+          "description": "Confidence percentage of classification"
+        },
+        "mlQualityScore": {
+          "type": "number",
+          "description": "Readme quality score"
+        },
+        "recommendedSections": {
+          "type": "array",
+          "description": "List of recommended sections"
+        },
+        "generationMode": {
+          "type": "string",
+          "description": "Generation input mode used (url or description)"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "repoName", "repoUrl", "content", "mlProjectType", "mlQualityScore", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of user profiles keyed by user auth ID"
+    },
+    "/users/{userId}/readmes/{readmeId}": {
+      "schema": "ReadmeHistory",
+      "description": "Subcollection under each user containing their forged README markdown files"
+    }
+  }
+}

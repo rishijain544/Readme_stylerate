@@ -1,0 +1,6 @@
+{
+  "name": "README Stylerate",
+  "description": "An AI-powered GitHub README generator with real-time browser-based ML classifiers, section recommenders, and quality scorers using TensorFlow.js.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
