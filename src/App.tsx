@@ -15,6 +15,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -162,6 +163,10 @@ export default function App() {
   const [fullName, setFullName] = useState('');
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, text: 'Empty', color: 'bg-gray-800' });
   const [rememberMe, setRememberMe] = useState(false);
+  const [googleSignInLoading, setGoogleSignInLoading] = useState(false);
+  const [authErrorType, setAuthErrorType] = useState<string | null>(null);
+  const [showVercelGuide, setShowVercelGuide] = useState(false);
+  const [useRedirectAuth, setUseRedirectAuth] = useState(false);
 
   // App Main State
   const [activeTab, setActiveTab] = useState<'generator' | 'readmes' | 'profile'>('generator');
@@ -529,12 +534,43 @@ export default function App() {
   };
 
   const handleGoogleSignIn = async () => {
+    setGoogleSignInLoading(true);
+    setAuthErrorType(null);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     try {
-      await signInWithPopup(auth, provider);
-      showToast('success', 'Signed in successfully with Google Sync!');
+      if (useRedirectAuth) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        try {
+          await signInWithPopup(auth, provider);
+          showToast('success', 'Signed in successfully with Google Sync!');
+        } catch (innerErr: any) {
+          if (innerErr.code === 'auth/popup-blocked' || innerErr.code === 'auth/cancelled-popup-request') {
+            showToast('info', 'Popup blocked by browser. Initiating secure redirect sign-in...');
+            await signInWithRedirect(auth, provider);
+          } else {
+            throw innerErr;
+          }
+        }
+      }
     } catch (err: any) {
-      logError("Auth Google sign-in", err, err.message || 'Failed code auth sync via Google.');
+      console.error("Google login failed", err);
+      setAuthErrorType(err.code || 'UNKNOWN');
+      setShowVercelGuide(true); // Toggle the guide on to assist the developer!
+      
+      let friendlyMsg = err.message || 'Failed code auth sync via Google.';
+      if (err.code === 'auth/unauthorized-domain') {
+        friendlyMsg = "Google Auth requires authorizing your Vercel URL first! See the setup guide below.";
+      } else if (err.code === 'auth/operation-not-allowed') {
+        friendlyMsg = "Google provider is not enabled in your Firebase Authentication console. See instructions below.";
+      } else if (err.code === 'auth/configuration-not-found') {
+        friendlyMsg = "Configuration error: check if your Vercel Environment Variables are fully populated.";
+      }
+      
+      logError("Auth Google sign-in", err, friendlyMsg);
+    } finally {
+      setGoogleSignInLoading(false);
     }
   };
 
@@ -1155,7 +1191,7 @@ export default function App() {
       {/* ────────────────── OVERLAY MODAL — SECURITY AUTH GATEWAY ────────────────── */}
       {isAuthModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030303]/90 backdrop-blur-md">
-          <div className="w-full max-w-md glass-panel bg-[#0a0a0a]/90 border border-white/10 p-8 relative overflow-hidden select-none">
+          <div className="w-full max-w-md glass-panel bg-[#0a0a0a]/95 border border-white/10 p-8 relative overflow-y-auto max-h-[92vh] custom-scroll select-none">
             
             <div className="text-center mb-6">
               <div className="flex justify-center mb-3">
@@ -1244,29 +1280,104 @@ export default function App() {
 
                 <button
                   type="button"
+                  disabled={googleSignInLoading}
                   onClick={handleGoogleSignIn}
-                  className="w-full py-2.5 border border-white/10 hover:border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/10 text-white font-bold text-xs rounded-lg transition-all uppercase flex items-center justify-center gap-2 cursor-pointer"
+                  className={`w-full py-2.5 border border-white/10 hover:border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/10 text-white font-bold text-xs rounded-lg transition-all uppercase flex items-center justify-center gap-2 cursor-pointer ${googleSignInLoading ? 'opacity-50 cursor-wait' : ''}`}
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.04c1.78 0 3.37.61 4.63 1.8l3.46-3.46C17.99 1.41 15.22.5 12 .5 7.42.5 3.52 3.12 1.62 6.94l3.96 3.07C6.54 7.04 9.03 5.04 12 5.04z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.47h6.44c-.28 1.47-1.11 2.71-2.36 3.55l3.66 2.84c2.14-1.97 3.39-4.88 3.39-8.5z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.58 14.77c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27L1.62 7.16C.59 9.23 0 11.55 0 14c0 2.45.59 4.77 1.62 6.84l3.96-3.07z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23.5c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.01.68-2.31 1.09-4.3 1.09-2.97 0-5.46-2-6.42-4.97L1.62 16.94c1.9 3.82 5.8 4.56 10.38 4.56z"
-                    />
-                  </svg>
-                  Sign In with Google
+                  {googleSignInLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#8B5CF6]" />
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.04c1.78 0 3.37.61 4.63 1.8l3.46-3.46C17.99 1.41 15.22.5 12 .5 7.42.5 3.52 3.12 1.62 6.94l3.96 3.07C6.54 7.04 9.03 5.04 12 5.04z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.47h6.44c-.28 1.47-1.11 2.71-2.36 3.55l3.66 2.84c2.14-1.97 3.39-4.88 3.39-8.5z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.58 14.77c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27L1.62 7.16C.59 9.23 0 11.55 0 14c0 2.45.59 4.77 1.62 6.84l3.96-3.07z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23.5c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.01.68-2.31 1.09-4.3 1.09-2.97 0-5.46-2-6.42-4.97L1.62 16.94c1.9 3.82 5.8 4.56 10.38 4.56z"
+                      />
+                    </svg>
+                  )}
+                  {googleSignInLoading ? 'Authenticating...' : `Sign In with Google ${useRedirectAuth ? '(Redirect Mode)' : ''}`}
                 </button>
+
+                <div className="flex flex-col gap-2 mt-2">
+                  <div className="flex items-center justify-between text-[10px] text-neutral-400 p-2 border border-white/5 bg-white/2 rounded-lg font-mono">
+                    <span>Flow constraint issues?</span>
+                    <button
+                      type="button"
+                      onClick={() => setUseRedirectAuth(!useRedirectAuth)}
+                      className={`px-2.5 py-1 rounded text-[9px] uppercase font-bold transition-all ${useRedirectAuth ? 'bg-[#8B5CF6] text-white' : 'bg-white/5 text-neutral-400 hover:text-white'}`}
+                    >
+                      {useRedirectAuth ? 'USE REDIRECT MODE' : 'USE POPUP MODE'}
+                    </button>
+                  </div>
+
+                  <div className="border border-yellow-500/10 bg-yellow-500/5 p-2 rounded-lg text-[9.5px] leading-relaxed text-yellow-500/80 font-sans flex items-start gap-1.5">
+                    <AlertCircle size={12} className="shrink-0 mt-0.5 text-yellow-500" />
+                    <span>
+                      <b>Vercel Deployments:</b> Remember to add your Vercel URL to your <b>Firebase Authorized Domains</b> list, or Google Sign-In won't work!
+                    </span>
+                  </div>
+
+                  {/* Vercel Troubleshooting foldout */}
+                  <div className="pt-1 select-none">
+                    <button
+                      type="button"
+                      onClick={() => setShowVercelGuide(!showVercelGuide)}
+                      className="text-[10px] text-neutral-400 hover:text-[#8B5CF6] uppercase font-mono flex items-center gap-1 transition"
+                    >
+                      {showVercelGuide ? '▲ Hide Vercel & Firebase Setup Guide' : '▼ View Vercel & Firebase Setup Guide'}
+                    </button>
+
+                    {showVercelGuide && (
+                      <div className="mt-2.5 bg-[#0e0e10] border border-white/10 rounded-lg p-3 space-y-3 font-sans text-[10.5px] text-neutral-300 leading-relaxed max-h-[220px] overflow-y-auto custom-scroll">
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 1: whitelist deployment domain</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            Go to <a href="https://console.firebase.google.com" target="_blank" rel="noopener" className="text-[#8B5CF6] underline hover:text-[#a78bfa]">Firebase Console</a> &rarr; Authentication &rarr; Settings &rarr; Authorized domains &rarr; Add your Vercel URL (e.g. <code className="text-white">stylerate.vercel.app</code>).
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 2: set vercel environment variables</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            Copy these settings to your Vercel Project Dashboard under <b>Project Settings &rarr; Environment Variables</b>:
+                          </p>
+                          <div className="bg-black/80 p-2 border border-white/5 rounded text-[9px] font-mono text-emerald-400 select-all overflow-x-auto space-y-0.5">
+                            <div>VITE_FIREBASE_API_KEY = "YourFirebaseApiKey"</div>
+                            <div>VITE_FIREBASE_AUTH_DOMAIN = "githubreadmegenerator-f6cbc.firebaseapp.com"</div>
+                            <div>VITE_FIREBASE_PROJECT_ID = "githubreadmegenerator-f6cbc"</div>
+                            <div>VITE_FIREBASE_APP_ID = "1:74753219246:web:18419f95ede1831ad42b3f"</div>
+                            <div>GEMINI_API_KEY = "YourGeminiApiKey"</div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 3: config google provider</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            In Firebase Console &rarr; Authentication &rarr; Sign-in method, click Google and turn on "Enable" so logins work.
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 4: bypass popup blocks</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            If popups are disabled or blocked inside an embedded platform container, toggle <b>USE REDIRECT MODE</b> above to route the login flow natively through browser redirects.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div className="relative my-2 text-center select-none py-1">
                   <span className="text-[9.5px] text-neutral-500 bg-[#0a0a0a] px-2 relative z-10 uppercase tracking-widest font-mono">
@@ -1350,29 +1461,97 @@ export default function App() {
 
                 <button
                   type="button"
+                  disabled={googleSignInLoading}
                   onClick={handleGoogleSignIn}
-                  className="w-full py-2.5 border border-white/10 hover:border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/10 text-white font-bold text-xs rounded-lg transition-all uppercase flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  className={`w-full py-2.5 border border-white/10 hover:border-[#8B5CF6]/30 hover:bg-[#8B5CF6]/10 text-white font-bold text-xs rounded-lg transition-all uppercase flex items-center justify-center gap-2 cursor-pointer mt-2 ${googleSignInLoading ? 'opacity-50 cursor-wait' : ''}`}
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.04c1.78 0 3.37.61 4.63 1.8l3.46-3.46C17.99 1.41 15.22.5 12 .5 7.42.5 3.52 3.12 1.62 6.94l3.96 3.07C6.54 7.04 9.03 5.04 12 5.04z"
-                    />
-                    <path
-                      fill="#4285F4"
-                      d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.47h6.44c-.28 1.47-1.11 2.71-2.36 3.55l3.66 2.84c2.14-1.97 3.39-4.88 3.39-8.5z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.58 14.77c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27L1.62 7.16C.59 9.23 0 11.55 0 14c0 2.45.59 4.77 1.62 6.84l3.96-3.07z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23.5c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.01.68-2.31 1.09-4.3 1.09-2.97 0-5.46-2-6.42-4.97L1.62 16.94c1.9 3.82 5.8 4.56 10.38 4.56z"
-                    />
-                  </svg>
-                  Sign Up with Google
+                  {googleSignInLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#8B5CF6]" />
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.04c1.78 0 3.37.61 4.63 1.8l3.46-3.46C17.99 1.41 15.22.5 12 .5 7.42.5 3.52 3.12 1.62 6.94l3.96 3.07C6.54 7.04 9.03 5.04 12 5.04z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.47h6.44c-.28 1.47-1.11 2.71-2.36 3.55l3.66 2.84c2.14-1.97 3.39-4.88 3.39-8.5z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.58 14.77c-.24-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27L1.62 7.16C.59 9.23 0 11.55 0 14c0 2.45.59 4.77 1.62 6.84l3.96-3.07z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23.5c3.24 0 5.97-1.07 7.96-2.91l-3.66-2.84c-1.01.68-2.31 1.09-4.3 1.09-2.97 0-5.46-2-6.42-4.97L1.62 16.94c1.9 3.82 5.8 4.56 10.38 4.56z"
+                      />
+                    </svg>
+                  )}
+                  {googleSignInLoading ? 'Authenticating...' : `Sign Up with Google ${useRedirectAuth ? '(Redirect Mode)' : ''}`}
                 </button>
+
+                <div className="flex flex-col gap-2 mt-2">
+                  <div className="flex items-center justify-between text-[10px] text-neutral-400 p-2 border border-white/5 bg-white/2 rounded-lg font-mono">
+                    <span>Flow constraint issues?</span>
+                    <button
+                      type="button"
+                      onClick={() => setUseRedirectAuth(!useRedirectAuth)}
+                      className={`px-2.5 py-1 rounded text-[9px] uppercase font-bold transition-all ${useRedirectAuth ? 'bg-[#8B5CF6] text-white' : 'bg-white/5 text-neutral-400 hover:text-white'}`}
+                    >
+                      {useRedirectAuth ? 'USE REDIRECT MODE' : 'USE POPUP MODE'}
+                    </button>
+                  </div>
+
+                  {/* Vercel Troubleshooting foldout */}
+                  <div className="pt-1 select-none">
+                    <button
+                      type="button"
+                      onClick={() => setShowVercelGuide(!showVercelGuide)}
+                      className="text-[10px] text-neutral-400 hover:text-[#8B5CF6] uppercase font-mono flex items-center gap-1 transition"
+                    >
+                      {showVercelGuide ? '▲ Hide Vercel & Firebase Setup Guide' : '▼ View Vercel & Firebase Setup Guide'}
+                    </button>
+
+                    {showVercelGuide && (
+                      <div className="mt-2.5 bg-[#0e0e10] border border-white/10 rounded-lg p-3 space-y-3 font-sans text-[10.5px] text-neutral-300 leading-relaxed max-h-[220px] overflow-y-auto custom-scroll">
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 1: whitelist deployment domain</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            Go to <a href="https://console.firebase.google.com" target="_blank" rel="noopener" className="text-[#8B5CF6] underline hover:text-[#a78bfa]">Firebase Console</a> &rarr; Authentication &rarr; Settings &rarr; Authorized domains &rarr; Add your Vercel URL (e.g. <code className="text-white">stylerate.vercel.app</code>).
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 2: set vercel environment variables</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            Copy these settings to your Vercel Project Dashboard under <b>Project Settings &rarr; Environment Variables</b>:
+                          </p>
+                          <div className="bg-black/80 p-2 border border-white/5 rounded text-[9px] font-mono text-emerald-400 select-all overflow-x-auto space-y-0.5">
+                            <div>VITE_FIREBASE_API_KEY = "YourFirebaseApiKey"</div>
+                            <div>VITE_FIREBASE_AUTH_DOMAIN = "githubreadmegenerator-f6cbc.firebaseapp.com"</div>
+                            <div>VITE_FIREBASE_PROJECT_ID = "githubreadmegenerator-f6cbc"</div>
+                            <div>VITE_FIREBASE_APP_ID = "1:74753219246:web:18419f95ede1831ad42b3f"</div>
+                            <div>GEMINI_API_KEY = "YourGeminiApiKey"</div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 3: config google provider</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            In Firebase Console &rarr; Authentication &rarr; Sign-in method, click Google and turn on "Enable" so logins work.
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 4: bypass popup blocks</span>
+                          <p className="text-neutral-400 text-[10px]">
+                            If popups are disabled or blocked inside an embedded platform container, toggle <b>USE REDIRECT MODE</b> above to route the login flow natively through browser redirects.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div className="relative my-2 text-center select-none py-1">
                   <span className="text-[9.5px] text-neutral-500 bg-[#0a0a0a] px-2 relative z-10 uppercase tracking-widest font-mono">
