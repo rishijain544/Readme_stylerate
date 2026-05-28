@@ -1,7 +1,8 @@
+/// <reference types="vite/client" />
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import firebaseConfigOriginal from '../firebase-applet-config.json';
 
 // ── BEFORE DEPLOYING ──────────────────────────────────────
 // Add your production domain or Vercel domain to Firebase authorized domains:
@@ -66,9 +67,19 @@ import firebaseConfig from '../firebase-applet-config.json';
   }
 */
 
-// FIREBASE_CONFIG is public-facing and safe to expose in web apps.
+// FIREBASE_CONFIG is public-facing and safe to expose in web apps once restricted in GCP Console.
 // All writes are securely protected by Firestore database security rules defined above.
-// The configuration includes: apiKey, authDomain, projectId, storageBucket, messagingSenderId, appId
+// For security and hosting on Vercel/GitHub, we support overriding any variable via environment variables.
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigOriginal.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigOriginal.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigOriginal.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfigOriginal.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfigOriginal.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfigOriginal.appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || firebaseConfigOriginal.firestoreDatabaseId,
+};
+
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,

@@ -1,7 +1,7 @@
 {
   "projectId": "githubreadmegenerator-f6cbc",
   "appId": "1:74753219246:web:18419f95ede1831ad42b3f",
-  "apiKey": "AIzaSyBe3esVNqMFmfgpF5x6Mrae2TwDNZfRXeM",
+  "apiKey": "REPLACE_WITH_VITE_FIREBASE_API_KEY_ENVIRONMENT_VARIABLE",
   "authDomain": "githubreadmegenerator-f6cbc.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-c892129c-096d-4c81-82b7-91947d9caf61",
   "storageBucket": "githubreadmegenerator-f6cbc.firebasestorage.app",
