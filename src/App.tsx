@@ -1357,7 +1357,7 @@ export default function App() {
                             <div>VITE_FIREBASE_AUTH_DOMAIN = "githubreadmegenerator-f6cbc.firebaseapp.com"</div>
                             <div>VITE_FIREBASE_PROJECT_ID = "githubreadmegenerator-f6cbc"</div>
                             <div>VITE_FIREBASE_APP_ID = "1:74753219246:web:18419f95ede1831ad42b3f"</div>
-                            <div>GEMINI_API_KEY = "YourGeminiApiKey"</div>
+                            <div>GEMINI_API_KEY or VITE_GEMINI_API_KEY = "YourGeminiApiKey"</div>
                           </div>
                         </div>
 
@@ -1531,7 +1531,7 @@ export default function App() {
                             <div>VITE_FIREBASE_AUTH_DOMAIN = "githubreadmegenerator-f6cbc.firebaseapp.com"</div>
                             <div>VITE_FIREBASE_PROJECT_ID = "githubreadmegenerator-f6cbc"</div>
                             <div>VITE_FIREBASE_APP_ID = "1:74753219246:web:18419f95ede1831ad42b3f"</div>
-                            <div>GEMINI_API_KEY = "YourGeminiApiKey"</div>
+                            <div>GEMINI_API_KEY or VITE_GEMINI_API_KEY = "YourGeminiApiKey"</div>
                           </div>
                         </div>
 

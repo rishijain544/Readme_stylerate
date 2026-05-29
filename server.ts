@@ -19,9 +19,9 @@ app.use(express.json());
   let ai: GoogleGenAI | null = null;
   function getGeminiClient() {
     if (!ai) {
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
       if (!apiKey) {
-        throw new Error('GEMINI_API_KEY environment variable is not defined. Please configure secrets.');
+        throw new Error('GEMINI_API_KEY or VITE_GEMINI_API_KEY environment variable is not defined. Please configure secrets in Vercel.');
       }
       ai = new GoogleGenAI({
         apiKey,
@@ -39,7 +39,7 @@ app.use(express.json());
   app.get('/api/status', (req, res) => {
     res.json({
       status: 'online',
-      hasApiKey: !!process.env.GEMINI_API_KEY,
+      hasApiKey: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY),
     });
   });
 
