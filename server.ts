@@ -457,8 +457,12 @@ Write a highly detailed, complete README in pure markdown. Remember: NO PLACEHOL
       res.end();
     } catch (error: any) {
       console.error('Gemini error:', error);
-      res.write(`\n[ERROR: Stream interrupted due to API failure: ${error.message || error}]`);
-      res.end();
+      if (!res.headersSent) {
+        res.status(500).send(error?.message || 'Stream failed before starting');
+      } else {
+        res.write(`\n[ERROR: Stream interrupted due to API failure: ${error.message || error}]`);
+        res.end();
+      }
     }
   });
 

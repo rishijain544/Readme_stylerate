@@ -757,7 +757,11 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Streaming failed or API keys missing in server environment.');
+        let serverError = '';
+        try {
+          serverError = await response.text();
+        } catch (_) {}
+        throw new Error(`Streaming failed (Status: ${response.status}). ${serverError || 'API keys missing, or Vercel execution timed out.'}`);
       }
 
       const reader = response.body?.getReader();
