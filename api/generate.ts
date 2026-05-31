@@ -1,186 +1,61 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
 
-dotenv.config();
+export const config = {
+  runtime: 'edge',
+};
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const app = express();
-const PORT = 3000;
-
-app.use(express.json());
-
-  // Initialize Gemini client lazily/safely
-  let ai: GoogleGenAI | null = null;
-  function getGeminiClient() {
-    if (!ai) {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('GEMINI_API_KEY or VITE_GEMINI_API_KEY environment variable is not defined. Please configure secrets in Vercel.');
-      }
-      ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          },
-        },
-      });
-    }
-    return ai;
+export default async function handler(req: Request) {
+  if (req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 });
   }
 
-  // API Check endpoint
-  app.get('/api/status', (req, res) => {
-    res.json({
-      status: 'online',
-      hasApiKey: !!(process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY),
-    });
-  });
+  try {
+    const body = await req.json();
+    const { 
+      repo, 
+      ml_analysis, 
+      sections_to_include, 
+      section_relevance_scores, 
+      extra_context, 
+      optional_details, 
+      generation_mode 
+    } = body;
 
-  // Proxy endpoint to mock or request high-quality repo analysis
-  app.post('/api/analyze-repo', async (req, res) => {
-    try {
-      const { repoUrl, githubToken } = req.body;
-      if (!repoUrl) {
-        return res.status(400).json({ error: 'Repository URL is required' });
-      }
-
-      // Extract owner and repo
-      const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-      if (!match) {
-        return res.status(400).json({ error: 'Invalid GitHub URL format. Use: https://github.com/owner/repo' });
-      }
-
-      const [, owner, repo] = match;
-      const cleanRepo = repo.replace(/\.git$/, '');
-
-      // Fetch from GitHub public API with graceful mock fallback if unauthorized/not found/rate-limited
-      const headers: Record<string, string> = {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'README-Forge'
-      };
-      if (githubToken) {
-        headers['Authorization'] = `token ${githubToken}`;
-      }
-
-      let repoData: any = null;
-      let languages: any = {};
-      let files: string[] = [];
-
-      try {
-        const repoRes = await fetch(`https://api.github.com/repos/${owner}/${cleanRepo}`, { headers });
-        if (repoRes.ok) {
-          repoData = await repoRes.json();
-        } else {
-          console.warn(`GitHub API returned status ${repoRes.status}: ${repoRes.statusText}. Using graceful simulated fallback.`);
-        }
-      } catch (err: any) {
-        console.warn('GitHub API network error, falling back dynamically:', err);
-      }
-
-      if (repoData) {
-        // Attempt to fetch languages from GitHub API
-        try {
-          const langRes = await fetch(`https://api.github.com/repos/${owner}/${cleanRepo}/languages`, { headers });
-          if (langRes.ok) {
-            languages = await langRes.json();
-          }
-        } catch (e) {
-          console.warn('Could not fetch language distribution', e);
-        }
-
-        // Attempt to fetch file structure / contents from GitHub API
-        try {
-          const filesRes = await fetch(`https://api.github.com/repos/${owner}/${cleanRepo}/contents`, { headers });
-          if (filesRes.ok) {
-            const filesData = await filesRes.json();
-            if (Array.isArray(filesData)) {
-              files = filesData.map((f: any) => f.name);
-            }
-          }
-        } catch (e) {
-          console.warn('Could not fetch contents', e);
-        }
-      } else {
-        // Create an excellent synthesized repository profile based on heuristics
-        const isML = cleanRepo.toLowerCase().includes('image') || cleanRepo.toLowerCase().includes('torch') || cleanRepo.toLowerCase().includes('detector') || cleanRepo.toLowerCase().includes('model') || cleanRepo.toLowerCase().includes('predict') || cleanRepo.toLowerCase().includes('ai') || cleanRepo.toLowerCase().includes('ml');
-        const isBackend = cleanRepo.toLowerCase().includes('api') || cleanRepo.toLowerCase().includes('gateway') || cleanRepo.toLowerCase().includes('server') || cleanRepo.toLowerCase().includes('microservice') || cleanRepo.toLowerCase().includes('express') || cleanRepo.toLowerCase().includes('django') || cleanRepo.toLowerCase().includes('node');
-        const guessedLang = isML ? 'Python' : (isBackend ? 'TypeScript' : 'JavaScript');
-
-        repoData = {
-          name: cleanRepo,
-          full_name: `${owner}/${cleanRepo}`,
-          description: `An elegant ${guessedLang}-based system for ${cleanRepo}, analyzed successfully on the fly.`,
-          language: guessedLang,
-          stargazers_count: Math.floor(Math.random() * 40) + 120,
-          forks_count: Math.floor(Math.random() * 10) + 25,
-          open_issues_count: Math.floor(Math.random() * 3),
-          html_url: repoUrl,
-          topics: isML ? ['machine-learning', 'python', 'ai-model', 'neural-network'] : (isBackend ? ['api-gateway', 'express', 'nodejs', 'backend'] : ['web-app', 'frontend', 'javascript', 'react-app']),
-          owner: { login: owner }
-        };
-
-        languages = isML ? { "Python": 85000, "C++": 12000 } : { [guessedLang]: 45000, "HTML": 3200, "CSS": 4500 };
-        files = isML 
-          ? ['main.py', 'model.py', 'requirements.txt', 'dataset.py', 'config.yaml', 'utils.py', 'README.md']
-          : ['src', 'server.ts', 'package.json', 'tsconfig.json', '.env.example', 'README.md', 'public'];
-      }
-
-      // Compile relevant repository details for our ML TF feature extraction
-      res.json({
-        name: repoData.name,
-        fullName: repoData.full_name,
-        description: repoData.description || '',
-        language: repoData.language || '',
-        languages,
-        topics: repoData.topics || [],
-        stars: repoData.stargazers_count || 0,
-        forks: repoData.forks_count || 0,
-        openIssues: repoData.open_issues_count || 0,
-        files,
-        owner: repoData.owner?.login || '',
-        url: repoData.html_url
+    if (!repo || !sections_to_include) {
+      return new Response(JSON.stringify({ error: 'Missing required repository info or sections.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
       });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Error fetching GitHub repository' });
     }
-  });
 
-  // ML-enriched README Generation Endpoint using gemini-3.5-flash
-  app.post('/api/generate', async (req, res) => {
-    try {
-      const { 
-        repo, 
-        ml_analysis, 
-        sections_to_include, 
-        section_relevance_scores, 
-        extra_context, 
-        optional_details, 
-        generation_mode 
-      } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'GEMINI_API_KEY or VITE_GEMINI_API_KEY environment variable is not defined.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
-      if (!repo || !sections_to_include) {
-        return res.status(400).json({ error: 'Missing required repository info or sections.' });
-      }
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
 
-      const client = getGeminiClient();
+    const details = optional_details || {};
+    const live_demo_url = details.live_demo_url || null;
+    const description_override = details.description_override || null;
+    const deployment_platform = details.deployment_platform || 'None';
+    const author_name = details.author_name || null;
+    const author_username = details.author_username || null;
+    const additional_badges = details.additional_badges || [];
+    const no_live_demo = details.no_live_demo || false;
 
-      const details = optional_details || {};
-      const live_demo_url = details.live_demo_url || null;
-      const description_override = details.description_override || null;
-      const deployment_platform = details.deployment_platform || 'None';
-      const author_name = details.author_name || null;
-      const author_username = details.author_username || null;
-      const additional_badges = details.additional_badges || [];
-      const no_live_demo = details.no_live_demo || false;
-
-      // Construct a highly robust visual & technical technical writer instruction
-      const systemInstruction = `You are an expert open-source technical writer. Your job is to generate a complete, professional, visually rich GitHub README.md file.
+    // Construct a highly robust visual & technical technical writer instruction
+    const systemInstruction = `You are an expert open-source technical writer. Your job is to generate a complete, professional, visually rich GitHub README.md file.
 
 ════════════════════════════════════════════════════════════════
  OUTPUT STYLE — FOLLOW EXACTLY
@@ -371,36 +246,36 @@ Made with ❤️ by {author_name}
       contributors:  https://img.shields.io/github/contributors/{full_name}
       made with love:https://img.shields.io/badge/Made_with-❤️-red?style=for-the-badge`;
 
-      const promptPayload = {
-        ml_analysis: {
-          project_type: ml_analysis?.project_type || 'Unknown Type',
-          confidence: ml_analysis?.confidence || '0%',
-          type_probabilities: ml_analysis?.type_probabilities || {}
-        },
-        repo: {
-          name: repo.name || 'Unnamed Project',
-          description: repo.description || 'A software repository.',
-          language: repo.language || '',
-          languages: repo.languages || {},
-          topics: repo.topics || [],
-          stars: repo.stars || 0,
-          forks: repo.forks || 0,
-          files: repo.files || [],
-          owner: repo.owner || ''
-        },
-        sections_to_include,
-        section_relevance_scores: section_relevance_scores || {},
-        extra_context: extra_context || ''
-      };
+    const promptPayload = {
+      ml_analysis: {
+        project_type: ml_analysis?.project_type || 'Unknown Type',
+        confidence: ml_analysis?.confidence || '0%',
+        type_probabilities: ml_analysis?.type_probabilities || {}
+      },
+      repo: {
+        name: repo.name || 'Unnamed Project',
+        description: repo.description || 'A software repository.',
+        language: repo.language || '',
+        languages: repo.languages || {},
+        topics: repo.topics || [],
+        stars: repo.stars || 0,
+        forks: repo.forks || 0,
+        files: repo.files || [],
+        owner: repo.owner || ''
+      },
+      sections_to_include,
+      section_relevance_scores: section_relevance_scores || {},
+      extra_context: extra_context || ''
+    };
 
-      // Detect if Firebase is in the files list or package.json
-      const isFirebaseDetected = repo.files?.some((f: string) => f.toLowerCase().includes('firebase') || f.includes('firestore')) || 
-                                 JSON.stringify(repo.languages || {}).toLowerCase().includes('firebase');
+    // Detect if Firebase is in the files list or package.json
+    const isFirebaseDetected = repo.files?.some((f: string) => f.toLowerCase().includes('firebase') || f.includes('firestore')) || 
+                               JSON.stringify(repo.languages || {}).toLowerCase().includes('firebase');
 
-      const inferredLicense = repo.files?.some((f: string) => f.toUpperCase().includes('LICENSE')) ? 'MIT' : 'MIT';
-      const inferredHomepage = repo.url || `https://github.com/${promptPayload.repo.owner || 'github'}/${promptPayload.repo.name}`;
+    const inferredLicense = repo.files?.some((f: string) => f.toUpperCase().includes('LICENSE')) ? 'MIT' : 'MIT';
+    const inferredHomepage = repo.url || `https://github.com/${promptPayload.repo.owner || 'github'}/${promptPayload.repo.name}`;
 
-      const prompt = `Generate a magnificent README.md containing the following configuration. Follow the guidelines and structural styles EXACTLY with zero omissions.
+    const prompt = `Generate a magnificent README.md containing the following configuration. Follow the guidelines and structural styles EXACTLY with zero omissions.
 
 Repository Details:
 - Repo Name: ${promptPayload.repo.name}
@@ -433,67 +308,43 @@ Extra instructions & details from the author:
 
 Write a highly detailed, complete README in pure markdown. Remember: NO PLACEHOLDERS, NO TODOs, at least 8 Feature rows in a neat markdown table, tech stack tables, environment templates, ASCII diagram flow, actual scripts, and full shields.io labels. Ensure you process the "Optional Details & Manual Overrides" section and strictly apply the outlined override rules specified in your system instructions.`;
 
-      // Set headers for SSE-like text streaming so the client terminal displays realistic incremental generation
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Transfer-Encoding', 'chunked');
-
-      const responseStream = await client.models.generateContentStream({
-        model: 'gemini-3.5-flash',
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-          topP: 0.95
-        }
-      });
-
-      for await (const chunk of responseStream) {
-        if (chunk.text) {
-          res.write(chunk.text);
-        }
+    const responseStream = await ai.models.generateContentStream({
+      model: 'gemini-3.5-flash',
+      contents: prompt,
+      config: {
+        systemInstruction,
+        temperature: 0.7,
+        topP: 0.95
       }
+    });
 
-      res.end();
-    } catch (error: any) {
-      console.error('Gemini error:', error);
-      if (!res.headersSent) {
-        res.status(500).send(error?.message || 'Stream failed before starting');
-      } else {
-        res.write(`\n[ERROR: Stream interrupted due to API failure: ${error.message || error}]`);
-        res.end();
-      }
-    }
-  });
-
-  // Serve static assets in production, otherwise mount Vite
-  if (!process.env.VERCEL) {
-    const bootstrap = async () => {
-      if (process.env.NODE_ENV !== 'production') {
-        const { createServer: createViteServer } = await import('vite');
-        const vite = await createViteServer({
-          server: { 
-            middlewareMode: true,
-            hmr: {
-              protocol: 'wss',
-              clientPort: 443,
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of responseStream) {
+            if (chunk.text) {
+              controller.enqueue(encoder.encode(chunk.text));
             }
-          },
-          appType: 'spa',
-        });
-        app.use(vite.middlewares);
-      } else {
-        const distPath = path.join(process.cwd(), 'dist');
-        app.use(express.static(distPath));
-        app.get('*', (req, res) => {
-          res.sendFile(path.join(distPath, 'index.html'));
-        });
-      }
+          }
+          controller.close();
+        } catch (err: any) {
+          controller.error(err);
+        }
+      },
+    });
 
-      app.listen(PORT, '0.0.0.0', () => {
-        console.log(`README Stylerate backend running on http://0.0.0.0:${PORT}`);
-      });
-    };
-    bootstrap();
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
+      },
+    });
+  } catch (error: any) {
+    console.error('Edge function Gemini error:', error);
+    return new Response(JSON.stringify({ error: error.message || 'Stream failed before starting' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-
-export default app;
+}
