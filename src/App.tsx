@@ -1325,62 +1325,7 @@ export default function App() {
                     </button>
                   </div>
 
-                  <div className="border border-yellow-500/10 bg-yellow-500/5 p-2 rounded-lg text-[9.5px] leading-relaxed text-yellow-500/80 font-sans flex items-start gap-1.5">
-                    <AlertCircle size={12} className="shrink-0 mt-0.5 text-yellow-500" />
-                    <span>
-                      <b>Vercel Deployments:</b> Remember to add your Vercel URL to your <b>Firebase Authorized Domains</b> list, or Google Sign-In won't work!
-                    </span>
-                  </div>
 
-                  {/* Vercel Troubleshooting foldout */}
-                  <div className="pt-1 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setShowVercelGuide(!showVercelGuide)}
-                      className="text-[10px] text-neutral-400 hover:text-[#8B5CF6] uppercase font-mono flex items-center gap-1 transition"
-                    >
-                      {showVercelGuide ? '▲ Hide Vercel & Firebase Setup Guide' : '▼ View Vercel & Firebase Setup Guide'}
-                    </button>
-
-                    {showVercelGuide && (
-                      <div className="mt-2.5 bg-[#0e0e10] border border-white/10 rounded-lg p-3 space-y-3 font-sans text-[10.5px] text-neutral-300 leading-relaxed max-h-[220px] overflow-y-auto custom-scroll">
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 1: whitelist deployment domain</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            Go to <a href="https://console.firebase.google.com" target="_blank" rel="noopener" className="text-[#8B5CF6] underline hover:text-[#a78bfa]">Firebase Console</a> &rarr; Authentication &rarr; Settings &rarr; Authorized domains &rarr; Add your Vercel URL (e.g. <code className="text-white">stylerate.vercel.app</code>).
-                          </p>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 2: set vercel environment variables</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            Copy these settings to your Vercel Project Dashboard under <b>Project Settings &rarr; Environment Variables</b>:
-                          </p>
-                          <div className="bg-black/80 p-2 border border-white/5 rounded text-[9px] font-mono text-emerald-400 select-all overflow-x-auto space-y-0.5">
-                            <div>VITE_FIREBASE_API_KEY = "YourFirebaseApiKey"</div>
-                            <div>VITE_FIREBASE_AUTH_DOMAIN = "githubreadmegenerator-f6cbc.firebaseapp.com"</div>
-                            <div>VITE_FIREBASE_PROJECT_ID = "githubreadmegenerator-f6cbc"</div>
-                            <div>VITE_FIREBASE_APP_ID = "1:74753219246:web:18419f95ede1831ad42b3f"</div>
-                            <div>GEMINI_API_KEY or VITE_GEMINI_API_KEY = "YourGeminiApiKey"</div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 3: config google provider</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            In Firebase Console &rarr; Authentication &rarr; Sign-in method, click Google and turn on "Enable" so logins work.
-                          </p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 4: bypass popup blocks</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            If popups are disabled or blocked inside an embedded platform container, toggle <b>USE REDIRECT MODE</b> above to route the login flow natively through browser redirects.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 <div className="relative my-2 text-center select-none py-1">
@@ -1506,55 +1451,7 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Vercel Troubleshooting foldout */}
-                  <div className="pt-1 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setShowVercelGuide(!showVercelGuide)}
-                      className="text-[10px] text-neutral-400 hover:text-[#8B5CF6] uppercase font-mono flex items-center gap-1 transition"
-                    >
-                      {showVercelGuide ? '▲ Hide Vercel & Firebase Setup Guide' : '▼ View Vercel & Firebase Setup Guide'}
-                    </button>
 
-                    {showVercelGuide && (
-                      <div className="mt-2.5 bg-[#0e0e10] border border-white/10 rounded-lg p-3 space-y-3 font-sans text-[10.5px] text-neutral-300 leading-relaxed max-h-[220px] overflow-y-auto custom-scroll">
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 1: whitelist deployment domain</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            Go to <a href="https://console.firebase.google.com" target="_blank" rel="noopener" className="text-[#8B5CF6] underline hover:text-[#a78bfa]">Firebase Console</a> &rarr; Authentication &rarr; Settings &rarr; Authorized domains &rarr; Add your Vercel URL (e.g. <code className="text-white">stylerate.vercel.app</code>).
-                          </p>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 2: set vercel environment variables</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            Copy these settings to your Vercel Project Dashboard under <b>Project Settings &rarr; Environment Variables</b>:
-                          </p>
-                          <div className="bg-black/80 p-2 border border-white/5 rounded text-[9px] font-mono text-emerald-400 select-all overflow-x-auto space-y-0.5">
-                            <div>VITE_FIREBASE_API_KEY = "YourFirebaseApiKey"</div>
-                            <div>VITE_FIREBASE_AUTH_DOMAIN = "githubreadmegenerator-f6cbc.firebaseapp.com"</div>
-                            <div>VITE_FIREBASE_PROJECT_ID = "githubreadmegenerator-f6cbc"</div>
-                            <div>VITE_FIREBASE_APP_ID = "1:74753219246:web:18419f95ede1831ad42b3f"</div>
-                            <div>GEMINI_API_KEY or VITE_GEMINI_API_KEY = "YourGeminiApiKey"</div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 3: config google provider</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            In Firebase Console &rarr; Authentication &rarr; Sign-in method, click Google and turn on "Enable" so logins work.
-                          </p>
-                        </div>
-
-                        <div className="space-y-1">
-                          <span className="font-semibold text-[#8B5CF6] block uppercase text-[9px] tracking-wide font-mono">// STEP 4: bypass popup blocks</span>
-                          <p className="text-neutral-400 text-[10px]">
-                            If popups are disabled or blocked inside an embedded platform container, toggle <b>USE REDIRECT MODE</b> above to route the login flow natively through browser redirects.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 <div className="relative my-2 text-center select-none py-1">
